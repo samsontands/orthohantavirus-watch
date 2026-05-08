@@ -16,8 +16,8 @@ export const ACTIVE_OUTBREAKS: ActiveOutbreak[] = [
     totalCases: 8,
     totalDeaths: 3,
     primarySource: {
-      title: 'WHO — WHO\'s response to hantavirus cases linked to a cruise ship',
-      url: 'https://www.who.int/news/',
+      title: 'WHO — WHO\'s response to hantavirus cases linked to a cruise ship (7 May 2026)',
+      url: 'https://www.who.int/news/item/07-05-2026-who-s-response-to-hantavirus-cases-linked-to-a-cruise-ship',
     },
     summary:
       'Hantavirus cluster aboard a Dutch-flagged cruise ship; eight confirmed cases and three deaths reported as of 8 May 2026. Disembarked passengers being monitored across multiple countries. CDC has classified the response as Level 3.',

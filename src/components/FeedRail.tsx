@@ -1,4 +1,4 @@
-import type { FeedItem } from '../types';
+import type { FeedItem, SourceHealth } from '../types';
 
 const SOURCE_COLOR: Record<string, string> = {
   WHO: '#7aa6ff',
@@ -21,9 +21,10 @@ type Props = {
   feed: FeedItem[];
   selectedIso: string | null;
   onSelect: (iso: string | null) => void;
+  sourceHealth?: SourceHealth[];
 };
 
-export function FeedRail({ feed, selectedIso, onSelect }: Props) {
+export function FeedRail({ feed, selectedIso, onSelect, sourceHealth }: Props) {
   const items = selectedIso ? feed.filter((f) => f.iso === selectedIso) : feed;
 
   return (
@@ -36,8 +37,28 @@ export function FeedRail({ feed, selectedIso, onSelect }: Props) {
           <button onClick={() => onSelect(null)} className="text-[10px] text-muted hover:text-accent">clear ✕</button>
         )}
       </div>
-      <div className="px-3 py-2 border-b border-border text-[10px] text-muted leading-snug">
-        WHO News · Google News — keyword-filtered, refreshed every 10 min.
+      <div className="px-3 py-2 border-b border-border text-[10px] leading-snug">
+        <div className="text-muted">WHO News · Google News — keyword-filtered, refreshed every 10 min.</div>
+        {sourceHealth && sourceHealth.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {sourceHealth.map((h) => (
+              <span
+                key={h.name}
+                title={h.ok ? `${h.itemCount} items · ${h.latencyMs}ms` : h.error ?? 'unavailable'}
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-mono ${
+                  h.ok
+                    ? 'border-[#5fd28b]/40 text-[#5fd28b]'
+                    : 'border-accent/60 text-accent'
+                }`}
+              >
+                <span
+                  className={`inline-block w-1 h-1 rounded-full ${h.ok ? 'bg-[#5fd28b]' : 'bg-accent'}`}
+                />
+                {h.name} {h.ok ? `· ${h.itemCount}` : '· DOWN'}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <div className="overflow-auto flex-1">
         {items.length === 0 && (

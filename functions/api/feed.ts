@@ -1,6 +1,6 @@
 // Cloudflare Pages Function: GET /api/feed
-// Returns: active 2026 outbreaks (curated, ≥ April 2026) + live news/alerts (filtered to ≥ April 2026)
-// Cached on Cloudflare edge for 10 minutes.
+// Returns: active 2026 outbreaks (curated, ≥ April 2026) + live news/alerts (≥ April 2026)
+// + per-source health metadata so the UI can show degraded states.
 
 import { ACTIVE_OUTBREAKS, REPORTING_CUTOFF, SOURCE_NOTES } from '../../src/data/surveillance';
 
@@ -16,7 +16,17 @@ type FeedItem = {
   summary?: string;
 };
 
-const KEYWORDS = /hantavirus|hantaviral|\bHPS\b|\bHFRS\b|sin nombre|andes virus|puumala|hantaan|seoul virus|choclo|laguna negra|araraquara|juquitiba/i;
+type SourceHealth = {
+  name: 'WHO' | 'GoogleNews';
+  ok: boolean;
+  itemCount: number;
+  fetchedAt: string;
+  latencyMs: number;
+  error?: string;
+};
+
+const KEYWORDS =
+  /hantavirus|hantaviral|\bHPS\b|\bHFRS\b|sin nombre|andes virus|puumala|hantaan|seoul virus|choclo|laguna negra|araraquara|juquitiba/i;
 const CUTOFF_MS = new Date(REPORTING_CUTOFF).getTime();
 
 const COUNTRY_TO_ISO: Record<string, string> = {
@@ -39,7 +49,7 @@ function extractIso(text: string): { country?: string; iso?: string } {
 
 function decodeOnce(s: string): string {
   return s
-    .replace(/&amp;/g, '&')      // unwrap double-encoding first
+    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -50,7 +60,6 @@ function decodeOnce(s: string): string {
 }
 
 function decodeEntities(s: string): string {
-  // Some sources double-encode (&amp;nbsp;). Run twice; idempotent on single-encoded text.
   return decodeOnce(decodeOnce(s));
 }
 
@@ -61,7 +70,7 @@ function stripHtml(s: string): string {
 function parseRSS(xml: string, source: 'WHO' | 'GoogleNews', tier: 1 | 2): FeedItem[] {
   const items: FeedItem[] = [];
   const itemRe = /<item[^>]*>([\s\S]*?)<\/item>/g;
-  let m;
+  let m: RegExpExecArray | null;
   let i = 0;
   while ((m = itemRe.exec(xml)) !== null) {
     const block = m[1];
@@ -100,37 +109,72 @@ async function fetchText(url: string): Promise<string> {
     headers: { 'User-Agent': 'OrthohantavirusWatch/0.1 (+https://orthohantavirus.watch)' },
     cf: { cacheTtl: 600, cacheEverything: true },
   });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  if (!res.ok) throw new Error(`upstream ${res.status}`);
   return await res.text();
 }
 
-async function fetchWHO(): Promise<FeedItem[]> {
+async function fetchSource(
+  name: SourceHealth['name'],
+  url: string,
+  tier: 1 | 2,
+): Promise<{ items: FeedItem[]; health: SourceHealth }> {
+  const startedAt = Date.now();
+  const fetchedAt = new Date().toISOString();
   try {
-    const xml = await fetchText('https://www.who.int/rss-feeds/news-english.xml');
-    return parseRSS(xml, 'WHO', 1);
-  } catch {
-    return [];
-  }
-}
-
-async function fetchGoogleNews(): Promise<FeedItem[]> {
-  try {
-    const xml = await fetchText(
-      'https://news.google.com/rss/search?q=hantavirus+OR+%22Sin+Nombre%22+OR+%22Andes+virus%22+OR+Puumala+OR+HFRS+OR+HPS&hl=en-US&gl=US&ceid=US:en',
-    );
-    return parseRSS(xml, 'GoogleNews', 2);
-  } catch {
-    return [];
+    const xml = await fetchText(url);
+    const items = parseRSS(xml, name, tier);
+    return {
+      items,
+      health: {
+        name,
+        ok: true,
+        itemCount: items.length,
+        fetchedAt,
+        latencyMs: Date.now() - startedAt,
+      },
+    };
+  } catch (e) {
+    return {
+      items: [],
+      health: {
+        name,
+        ok: false,
+        itemCount: 0,
+        fetchedAt,
+        latencyMs: Date.now() - startedAt,
+        error: e instanceof Error ? e.message : String(e),
+      },
+    };
   }
 }
 
 export const onRequestGet: PagesFunction = async () => {
-  const [whoIt, gnewsIt] = await Promise.all([fetchWHO(), fetchGoogleNews()]);
+  const [who, gnews] = await Promise.all([
+    fetchSource(
+      'WHO',
+      'https://www.who.int/rss-feeds/news-english.xml',
+      1,
+    ),
+    fetchSource(
+      'GoogleNews',
+      'https://news.google.com/rss/search?q=hantavirus+OR+%22Sin+Nombre%22+OR+%22Andes+virus%22+OR+Puumala+OR+HFRS+OR+HPS&hl=en-US&gl=US&ceid=US:en',
+      2,
+    ),
+  ]);
 
-  const merged = [...whoIt, ...gnewsIt]
+  const merged = [...who.items, ...gnews.items]
     .filter((it) => !Number.isNaN(new Date(it.publishedAt).getTime()))
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 100);
+
+  const sourceHealth: SourceHealth[] = [who.health, gnews.health];
+  const allDown = sourceHealth.every((s) => !s.ok);
+  const anyDown = sourceHealth.some((s) => !s.ok);
+
+  // Log failures so they show up in `wrangler tail` / dashboard logs.
+  for (const h of sourceHealth) {
+    if (!h.ok) console.error(`[feed] ${h.name} failed: ${h.error} (${h.latencyMs}ms)`);
+  }
 
   const body = {
     outbreaks: ACTIVE_OUTBREAKS,
@@ -138,6 +182,8 @@ export const onRequestGet: PagesFunction = async () => {
     meta: {
       generatedAt: new Date().toISOString(),
       sources: SOURCE_NOTES,
+      sourceHealth,
+      degraded: anyDown,
       cutoff: REPORTING_CUTOFF,
       notes:
         'Reports limited to events published from 1 April 2026 onwards. Curated outbreak entries are corroborated by primary public-health sources; live items are aggregated from WHO News and Google News and filtered for hantavirus keywords.',
@@ -145,9 +191,13 @@ export const onRequestGet: PagesFunction = async () => {
   };
 
   return new Response(JSON.stringify(body), {
+    status: allDown ? 503 : 200,
     headers: {
       'content-type': 'application/json',
-      'cache-control': 'public, max-age=600, s-maxage=600',
+      // 30s cache when degraded so we recover quickly; 10min when healthy.
+      'cache-control': allDown
+        ? 'public, max-age=30, s-maxage=30'
+        : 'public, max-age=600, s-maxage=600',
       'access-control-allow-origin': '*',
     },
   });

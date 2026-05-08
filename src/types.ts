@@ -40,12 +40,23 @@ export type FeedItem = {
   summary?: string;
 };
 
+export type SourceHealth = {
+  name: 'WHO' | 'GoogleNews';
+  ok: boolean;
+  itemCount: number;
+  fetchedAt: string;
+  latencyMs: number;
+  error?: string;
+};
+
 export type DashboardData = {
   outbreaks: ActiveOutbreak[];
   feed: FeedItem[];
   meta: {
     generatedAt: string;
     sources: { name: string; url: string }[];
+    sourceHealth?: SourceHealth[];
+    degraded?: boolean;
     cutoff: string; // earliest date we report
     notes: string;
   };
