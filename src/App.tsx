@@ -83,7 +83,12 @@ export default function App() {
           )}
         </div>
 
-        <FeedRail feed={data.feed} selectedIso={selectedIso} onSelect={setSelectedIso} />
+        <FeedRail
+          feed={data.feed}
+          selectedIso={selectedIso}
+          onSelect={setSelectedIso}
+          sourceHealth={data.meta.sourceHealth}
+        />
       </div>
 
       <AwarenessDrawer open={awarenessOpen} onClose={() => setAwarenessOpen(false)} />
