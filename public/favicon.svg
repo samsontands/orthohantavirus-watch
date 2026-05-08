@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Earth body -->
+  <circle cx="16" cy="17" r="12" fill="#0b3a66"/>
+  <!-- Continents (simplified blobs) -->
+  <g fill="#1f7a4d">
+    <!-- Americas-ish -->
+    <path d="M9 12c1.5-.5 3 .5 3.5 2 .5 1.5-.5 2.5 0 4 .3 1-.5 2-1.5 2-1 0-2-1-2.5-2-.7-1.4-.5-3.5.5-6z"/>
+    <!-- Eurasia/Africa-ish -->
+    <path d="M17 11c2-.3 4 .8 5 2 1 1.2.5 3-.5 3.7-1 .7-2.5.3-3.5 1-.8.5-1.8.3-2.3-.7-.6-1-.4-2.4.3-3.5.3-.5.6-1 1-1.5z"/>
+    <!-- Australia-ish -->
+    <path d="M21 22c1.2-.4 2.5.4 2.7 1.4.2 1-.7 1.6-1.7 1.4-1-.2-1.7-1-1-2.8z"/>
+  </g>
+  <!-- Latitude/longitude hint -->
+  <circle cx="16" cy="17" r="12" fill="none" stroke="#7aa6ff" stroke-opacity="0.25" stroke-width="0.6"/>
+  <ellipse cx="16" cy="17" rx="12" ry="4" fill="none" stroke="#7aa6ff" stroke-opacity="0.2" stroke-width="0.5"/>
+  <!-- Green location marker pointing to a spot on earth -->
+  <g>
+    <!-- pulse halo -->
+    <circle cx="20.5" cy="11.5" r="4" fill="#39d96a" fill-opacity="0.18"/>
+    <circle cx="20.5" cy="11.5" r="2.6" fill="#39d96a" fill-opacity="0.35"/>
+    <!-- pin shape -->
+    <path d="M20.5 4.5c-2.2 0-4 1.8-4 4 0 3 4 7 4 7s4-4 4-7c0-2.2-1.8-4-4-4z" fill="#39d96a" stroke="#0b3a14" stroke-width="0.6"/>
+    <!-- pin inner dot -->
+    <circle cx="20.5" cy="8.5" r="1.4" fill="#0b3a14"/>
+  </g>
+</svg>

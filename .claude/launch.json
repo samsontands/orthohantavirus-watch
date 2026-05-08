@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "live",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "pages", "dev", "dist", "--port", "8788", "--ip", "127.0.0.1"],
+      "port": 8788
+    },
+    {
+      "name": "prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "require('http').createServer((req,res)=>{const u='https://orthohantavirus-watch.pages.dev'+req.url;require('https').get(u,r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res)})}).listen(8789,'127.0.0.1')"],
+      "port": 8789
+    }
+  ]
+}
